@@ -1,0 +1,107 @@
+<template>
+  <div class="bg-white rounded-lg p-4 flex items-stretch mb-1">
+    <upload-progress :progress="progress" />
+    <div class="flex flex-col justify-between">
+      <div class="mb-2">
+        <div class="font-medium mr-3 text-gray-700 leading-tight">
+          {{ upload.file.name }}
+        </div>
+        <div class="text-gray-600 text-sm leading-tight">
+          {{ sizeDisplay }} MB
+        </div>
+      </div>
+      <div class="text-gray-600 text-sm align-baseline">
+        <template v-if="state === states.WAITING">Waiting</template>
+        <template v-if="state === states.COMPLETED">Completed</template>
+        <template v-if="state === states.FAILED">Failed</template>
+        <template v-if="state === states.CANCELLED">Cancelled</template>
+        <template v-if="state === states.UNSUPPORTED">
+          Sorry, this file type isn't Unsupported
+        </template>
+        <template v-if="state === states.UPLOADING">
+          <a href="#" @click.prevent="cancel" class="text-blue-500">Cancel</a>
+        </template>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import states from "../state";
+import axios from "axios";
+import UploadProgress from "./UploadProgress.vue";
+export default {
+  props: {
+    upload: {
+      required: true,
+      type: Object,
+    },
+    baseURL: {
+      required: true,
+      type: String,
+    },
+    endpoint: {
+      required: true,
+      type: String,
+    },
+  },
+  components: {
+    UploadProgress,
+  },
+  data() {
+    return {
+      state: null,
+      progress: 0,
+      axios: {
+        cancel: null,
+      },
+
+      states,
+    };
+  },
+  computed: {
+    sizeDisplay() {
+      return (this.upload.file.size / 1000000).toFixed(2);
+    },
+  },
+  methods: {
+    cancel() {
+      this.axios.cancel();
+    },
+    makeFormData(file) {
+      const form = new FormData();
+      form.append("file", file, file.name);
+      return form;
+    },
+    handleUploadProgress(e) {
+      this.progress = Math.round((e.loaded * 100) / e.total);
+    },
+    startUpload() {
+      this.state = states.UPLOADING;
+      axios
+        .post(this.endpoint, this.makeFormData(this.upload.file), {
+          baseURL: this.baseURL,
+          onUploadProgress: this.handleUploadProgress,
+          cancelToken: new axios.CancelToken((token) => {
+            this.axios.cancel = token;
+          }),
+        })
+        .then(() => {
+          this.state = states.COMPLETED;
+        })
+        .catch((err) => {
+          if (err instanceof axios.Cancel) {
+            return (this.state = states.CANCELLED);
+          }
+          this.state = states.FAILED;
+        });
+    },
+  },
+  mounted() {
+    if (this.endpoint === null) {
+      return (this.state = states.UNSUPPORTED);
+    }
+    this.state = states.WAITING;
+    this.startUpload();
+  },
+};
+</script>
