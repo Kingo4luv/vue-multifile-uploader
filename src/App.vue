@@ -3,6 +3,7 @@
     <uploader
       :options="{
         baseURL: 'http://image-upload-cropper.test/api',
+        maxConcurrentUploads: 1,
       }"
       :handlers="{
         'video/mp4': {

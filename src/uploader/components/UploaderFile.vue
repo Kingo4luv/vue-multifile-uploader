@@ -63,6 +63,35 @@ export default {
       return (this.upload.file.size / 1000000).toFixed(2);
     },
   },
+  watch: {
+    "upload.queued"(queued) {
+      if (this.state === states.UNSUPPORTED) {
+        return;
+      }
+      if (queued === false) {
+        this.startUpload();
+      }
+    },
+    progress(progress) {
+      this.$emit("progress", {
+        id: this.upload.id,
+        progress,
+      });
+    },
+    state(state) {
+      this.$emit("change", {
+        id: this.upload.id,
+        state,
+      });
+
+      switch (state) {
+        case states.CANCELLED:
+        case states.FAILED:
+          this.progress = 0;
+          break;
+      }
+    },
+  },
   methods: {
     cancel() {
       this.axios.cancel();
@@ -101,7 +130,6 @@ export default {
       return (this.state = states.UNSUPPORTED);
     }
     this.state = states.WAITING;
-    this.startUpload();
   },
 };
 </script>
